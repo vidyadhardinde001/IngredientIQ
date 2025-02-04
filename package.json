@@ -31,6 +31,7 @@
     "emailjs-com": "^3.2.0",
     "express": "^4.21.1",
     "framer-motion": "^11.3.28",
+    "html5-qrcode": "^2.3.8",
     "jsonwebtoken": "^9.0.2",
     "jsqr": "^1.4.0",
     "mongoose": "^8.9.6",

@@ -6,6 +6,7 @@ import Hero from "@/sections/Hero";
 import IngredientScanPage from "@/sections/barcode"
 import AI from "@/sections/AI";
 import Main  from "@/sections/Main";
+import BarcodeScanner from "@/sections/barcode_scanner"
 
 
 import Link from "next/link";
@@ -36,6 +37,7 @@ export default function Home() {
     <>
       <Hero/>
       <Main/>
+      <BarcodeScanner/>
       <IngredientScanPage/>
       <FoodSearch/>
       <nav className="flex justify-end p-4">
