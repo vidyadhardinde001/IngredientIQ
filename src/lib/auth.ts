@@ -4,7 +4,11 @@ import User from "@/models/User";
 import { connectDB } from "@/lib/db";
 
 export const registerUser = async (
-    username: string, email: string, password: string, healthIssues: string[]
+    username: string, 
+    email: string, 
+    password: string, 
+    healthIssues: string[],
+    allergies: string[]
 ) => {
     try {
         await connectDB();
@@ -14,7 +18,13 @@ export const registerUser = async (
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ username, email, password: hashedPassword, healthIssues });
+        const user = new User({ 
+            username, 
+            email, 
+            password: hashedPassword, 
+            healthIssues,
+            allergies 
+        });
         await user.save();
 
         return { message: "User registered successfully", user };
@@ -30,23 +40,31 @@ export const loginUser = async (email: string, password: string) => {
         const user = await User.findOne({ email });
 
         if (!user) {
-            throw new Error("User not found"); // ❌ Don't return an object, throw an error
+            throw new Error("User not found");
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            throw new Error("Invalid credentials"); // ❌ Throw an error instead of returning an object
+            throw new Error("Invalid credentials");
         }
 
+        // Updated JWT payload with health data
         const token = jwt.sign(
-            { userId: user._id, email: user.email },
+            { 
+                userId: user._id, 
+                email: user.email,
+                healthData: {
+                    healthIssues: user.healthIssues,
+                    allergies: user.allergies
+                }
+            },
             process.env.JWT_SECRET!,
             { expiresIn: "1d" }
         );
 
-        return token; // ✅ Return only the token, not an object
-    } catch (error) {
+        return token;
+    } catch (error: any) {
         console.error("Login Error:", error);
-        throw new Error("Login failed"); // ❌ Don't return an object, throw an error
+        throw new Error(error.message || "Login failed");
     }
 };

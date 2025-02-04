@@ -4,7 +4,8 @@ interface IUser extends Document {
     username: string;
     email: string;
     password: string;
-    healthIssues?: string[];
+    healthIssues: string[];
+    allergies: string[];
 }
 
 const UserSchema = new Schema<IUser>({
@@ -12,6 +13,7 @@ const UserSchema = new Schema<IUser>({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     healthIssues: { type: [String], default: [] },
+    allergies: { type: [String], default: [] },
 });
 
 export default mongoose.models.User || mongoose.model<IUser>("User", UserSchema);

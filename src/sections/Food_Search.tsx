@@ -1,8 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
+import { useEffect } from "react";
+
 import axios from "axios";
 import NutriScoreSection from "./Nutriscore";
+import Link from "next/link";
+
+import { healthRules, HealthCondition } from "@/lib/healthRules";
 
 import {
   Container,
@@ -59,24 +64,196 @@ const FoodSearch: React.FC = () => {
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
 
-  const fetchFoodByBarcode = async () => {
-    setLoading(true);
-    setSelectedProduct(null);
-    setError("");
-    try {
-      const response = await axios.get(
-        `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`
-      );
-      if (response.data.status === 1 && response.data.product) {
-        setSelectedProduct(response.data.product);
-      } else {
-        setError("Product not found.");
-      }
-    } catch (err) {
-      setError("Failed to fetch data.");
-    }
-    setLoading(false);
+  const [substitutes, setSubstitutes] = useState<any[]>([]);
+  const [substituteLoading, setSubstituteLoading] = useState(false);
+  const [healthData, setHealthData] = useState<{ 
+    healthIssues: string[], 
+    allergies: string[] 
+  }>({ healthIssues: [], allergies: [] });
+
+  useEffect(() => {
+    const userHealthData = JSON.parse(localStorage.getItem("userHealthData") || "{}");
+    setHealthData({
+      healthIssues: userHealthData.healthIssues || [],
+      allergies: userHealthData.allergies || []
+    });
+  }, [selectedProduct]); // Refresh when product changes
+
+  // Enhanced product analysis and substitution logic
+  const getProductCategory = (product: any) => {
+    return product.categories_tags?.[0]?.replace(/en:/g, "") || "generic";
   };
+
+  const hasAllergens = (product: any) => {
+    return healthData.allergies.some(allergy => 
+      product.ingredients_text?.toLowerCase().includes(allergy.toLowerCase())
+    );
+  };
+
+  const isWidelyAvailable = (product: any) => {
+    return (product.stores_tags?.length || 0) >= 3 && 
+           (product.countries_tags?.length || 0) >= 2;
+  };
+
+  const isNutritionallyBetter = (product: any, originalProduct: any) => {
+    const nutrition = product.nutriments || {};
+    const originalNutrition = originalProduct.nutriments || {};
+
+    return healthData.healthIssues.every(issue => {
+      const condition = issue.toLowerCase() as HealthCondition;
+      const rules = healthRules[condition] || {};
+
+      // Sugar check
+      if (rules.maxSugarPer100g) {
+        const subSugar = Number(nutrition.sugars_100g) || 0;
+        const origSugar = Number(originalNutrition.sugars_100g) || 0;
+        return subSugar < Math.min(origSugar * 0.7, rules.maxSugarPer100g);
+      }
+
+      // Fat check
+      if (rules.maxSaturatedFatPer100g) {
+        const subFat = Number(nutrition.saturated_fat_100g) || 0;
+        const origFat = Number(originalNutrition.saturated_fat_100g) || 0;
+        return subFat < Math.min(origFat * 0.7, rules.maxSaturatedFatPer100g);
+      }
+
+      // Add more condition checks as needed
+      return true;
+    });
+  };
+
+
+  const findSubstitutes = async (originalProduct: any) => {
+    setSubstituteLoading(true);
+    try {
+      const category = getProductCategory(originalProduct);
+      const response = await axios.get(
+        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(category)}&json=1&sort_by=popularity&page_size=30`
+      );
+
+      const substitutes = response.data.products?.filter((product: any) => (
+        product.code !== originalProduct.code &&
+        !hasAllergens(product) &&
+        isNutritionallyBetter(product, originalProduct) &&
+        isWidelyAvailable(product)
+      )).slice(0, 5) || [];
+
+      setSubstitutes(substitutes);
+    } catch (error) {
+      console.error("Substitute search failed:", error);
+    }
+    setSubstituteLoading(false);
+  };
+
+  const analyzeProduct = (product: any) => {
+    // const harmful: string[] = [];
+    const warnings: string[] = [];
+    const nutrition = product.nutriments || {};
+
+    console.log("Full Product Data:", product); 
+
+    console.log("User Health Data:", healthData); // Add this
+    console.log("Product Nutrition:", nutrition); // Add this
+  
+    // Check for health issues
+    healthData.healthIssues.forEach(issue => {
+      const condition = issue.toLowerCase() as HealthCondition;
+      const rules = healthRules[condition] || {};
+  
+      // Sugar check
+      if (rules.maxSugarPer100g && (nutrition.sugars_100g || 0) > rules.maxSugarPer100g) {
+        warnings.push(`low-sugar`);
+      }
+  
+      // Fat check
+      if (rules.maxSaturatedFatPer100g && (nutrition.saturated_fat_100g || 0) > rules.maxSaturatedFatPer100g) {
+        warnings.push(`low-fat`);
+      }
+  
+      // Add other checks
+    });
+  
+    // Check for allergies
+    healthData.allergies.forEach(allergy => {
+      if (product.ingredients_text?.toLowerCase().includes(allergy.toLowerCase())) {
+        warnings.push(`no-${allergy}`);
+      }
+    });
+    console.log("Identified harmful components:", warnings);
+  
+    // return harmful.length > 0 ? harmful : [
+    //   "healthy",
+    //   "natural",
+    //   "organic",
+    //   "low-sugar",
+    //   "low-fat"
+    // ];
+    return warnings;
+  };
+
+//   const isWidelyAvailable = (product: any) => {
+//   return (product.stores_tags?.length || 0) >= 3 && // Available in 3+ store chains
+//          (product.countries_tags?.length || 0) >= 2; // Available in 2+ countries
+// };
+
+  const isProductBetter = (product: any, harmfulComponents: string[]) => {
+    const nutrition = product.nutriments || {};
+    
+    // Add null checks and fallback values
+    const getSafeValue = (value: any) => Number(value) || 0;
+  
+    return harmfulComponents.every(component => {
+      // For diabetes/sugar check
+      if (component === "low-sugar") {
+        const originalSugar = getSafeValue(selectedProduct.nutriments?.sugars_100g);
+        const substituteSugar = getSafeValue(nutrition.sugars_100g);
+        return substituteSugar < Math.max(originalSugar * 0.7, 10);
+      }
+  
+      // For heart/fat check
+      if (component === "low-fat") {
+        return getSafeValue(nutrition.saturated_fat) < 5;
+      }
+  
+      // For allergies
+      if (component.startsWith("no-")) {
+        const allergen = component.split("-")[1];
+        return !product.ingredients_text?.toLowerCase().includes(allergen);
+      }
+  
+      return true;
+    });
+  };
+
+  const handleProductSelect = (product: any) => {
+    setSelectedProduct(product);
+    findSubstitutes(product);
+  };
+
+  
+
+  // Update fetchFoodByBarcode function
+const fetchFoodByBarcode = async () => {
+  setLoading(true);
+  setSelectedProduct(null);
+  setError("");
+  try {
+    const response = await axios.get(
+      `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`
+    );
+    
+    if (response.data.status === 1 && response.data.product) {
+      const product = response.data.product;
+      setSelectedProduct(product);
+      findSubstitutes(product); // Add this line
+    } else {
+      setError("Product not found.");
+    }
+  } catch (err) {
+    setError("Failed to fetch data.");
+  }
+  setLoading(false);
+};
 
   const fetchFoodByName = async () => {
     setLoading(true);
@@ -181,7 +358,7 @@ const FoodSearch: React.FC = () => {
               <List>
                 {foodDataList.map((product, index) => (
                   <ListItem key={index} disablePadding>
-                    <ListItemButton onClick={() => setSelectedProduct(product)}>
+                    <ListItemButton onClick={() => handleProductSelect(product)}>
                       <ListItemText
                         primary={product.product_name || "Unnamed Product"}
                       />
@@ -332,6 +509,77 @@ const FoodSearch: React.FC = () => {
             </Accordion>
           </Grid>
         </Grid>
+      )}
+      {substitutes.length > 0 && (
+        <Grid container spacing={3} sx={{ mt: 4 }}>
+          <Grid item xs={12}>
+            <Typography variant="h5" gutterBottom>
+              Healthier & Accessible Alternatives
+            </Typography>
+            <Divider />
+          </Grid>
+          {substitutes.map((substitute) => (
+            <Grid item xs={12} sm={6} md={4} key={substitute.code || substitute._id}>
+              <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                <img
+                  src={substitute.image_url}
+                  alt={substitute.product_name}
+                  style={{ width: "100%", height: "200px", objectFit: "contain", padding: "10px" }}
+                />
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography gutterBottom variant="h6">
+                    {substitute.product_name || "Unnamed Product"}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                    <Chip 
+                      label={`${substitute.stores_tags?.length || 0} stores`}
+                      size="small" 
+                      color="info"
+                    />
+                    <Chip
+                      label={`${substitute.countries_tags?.length || 0} countries`}
+                      size="small"
+                      color="secondary"
+                    />
+                  </Box>
+                  <Box sx={{ mt: 1 }}>
+                    {substitute.nutriscore_grade && (
+                      <Chip
+                        label={`Nutri-Score: ${substitute.nutriscore_grade.toUpperCase()}`}
+                        color="primary"
+                        sx={{ mr: 1 }}
+                      />
+                    )}
+                    {substitute.ecoscore_grade && (
+                      <Chip
+                        label={`Eco-Score: ${substitute.ecoscore_grade.toUpperCase()}`}
+                        color="secondary"
+                      />
+                    )}
+                  </Box>
+                </CardContent>
+                <Box sx={{ p: 2 }}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => handleProductSelect(substitute)}
+                  >
+                    View Details
+                  </Button>
+                </Box>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+
+      {substituteLoading && (
+        <Box sx={{ textAlign: "center", mt: 4 }}>
+          <CircularProgress />
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Finding popular and safer alternatives...
+          </Typography>
+        </Box>
       )}
     </Container>
   );

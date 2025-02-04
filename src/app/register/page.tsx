@@ -6,8 +6,8 @@ interface FormData {
   username: string;
   email: string;
   password: string;
-  healthIssues: string[];
-  otherHealthIssues: string;
+  healthIssues: string;
+  allergies: string;
 }
 
 export default function Register() {
@@ -16,19 +16,9 @@ export default function Register() {
     username: "",
     email: "",
     password: "",
-    healthIssues: [],
-    otherHealthIssues: "",
+    healthIssues: "",
+    allergies: "",
   });
-
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value, checked } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      healthIssues: checked
-        ? [...prevData.healthIssues, value]
-        : prevData.healthIssues.filter((issue) => issue !== value),
-    }));
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -41,10 +31,16 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const allHealthIssues = [
-      ...formData.healthIssues,
-      ...(formData.otherHealthIssues ? [formData.otherHealthIssues] : []),
-    ];
+    // Convert comma-separated strings to arrays
+    const healthIssuesArray = formData.healthIssues
+      .split(',')
+      .map(item => item.trim())
+      .filter(item => item);
+      
+    const allergiesArray = formData.allergies
+      .split(',')
+      .map(item => item.trim())
+      .filter(item => item);
 
     try {
       const res = await fetch("/api/auth/", {
@@ -55,7 +51,8 @@ export default function Register() {
           username: formData.username,
           email: formData.email,
           password: formData.password,
-          healthIssues: allHealthIssues,
+          healthIssues: healthIssuesArray,
+          allergies: allergiesArray,
         }),
       });
 
@@ -101,28 +98,21 @@ export default function Register() {
           value={formData.password}
         />
 
-        <label className="block font-semibold mb-2">Health Issues:</label>
-        <div className="mb-4 space-y-2">
-          {["Diabetes", "Allergy", "Heart Disease"].map((issue) => (
-            <label key={issue} className="block">
-              <input
-                type="checkbox"
-                value={issue}
-                checked={formData.healthIssues.includes(issue)}
-                onChange={handleCheckboxChange}
-                className="mr-2"
-              />
-              {issue}
-            </label>
-          ))}
-        </div>
-
-        <textarea
-          name="otherHealthIssues"
-          placeholder="Other health issues (if any)"
+        <input
+          type="text"
+          name="healthIssues"
+          placeholder="Health Issues (comma separated)"
+          className="w-full p-2 border rounded mb-2"
+          onChange={handleChange}
+          value={formData.healthIssues}
+        />
+        <input
+          type="text"
+          name="allergies"
+          placeholder="Allergies (comma separated)"
           className="w-full p-2 border rounded mb-4"
           onChange={handleChange}
-          value={formData.otherHealthIssues}
+          value={formData.allergies}
         />
 
         <button type="submit" className="w-full p-2 bg-green-600 text-white rounded hover:bg-green-700">

@@ -34,14 +34,14 @@ const nextConfig = {
   // Adding domains for next/image
   
 
-  // async rewrites() {
-  //   return [
-  //     {
-  //       source: '/api/:path*',
-  //       destination: 'http://localhost:3000/api/:path*', // Proxy to Express server
-  //     },
-  //   ];
-  // },
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'https://world.openfoodfacts.org/api/:path*', // Proxy to Express server
+      },
+    ];
+  },
 
   // ...other config
 };

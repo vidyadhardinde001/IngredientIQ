@@ -6,7 +6,7 @@ export async function POST(req: Request) {
         const body = await req.json();
         console.log("Received Request Body:", body); // ✅ Debugging Line
 
-        const { action, username, email, password, healthIssues } = body;
+        const { action, username, email, password, healthIssues, allergies } = body;
 
         if (action === "register") {
             if (!username || !email || !password) {
@@ -17,7 +17,13 @@ export async function POST(req: Request) {
             }
 
             try {
-                const user = await registerUser(username, email, password, healthIssues || []);
+                const user = await registerUser(
+                    username, 
+                    email, 
+                    password, 
+                    healthIssues || [],
+                    allergies || []
+                );
                 
                 if ("error" in user) {
                     throw new Error(user.error); // ❌ Instead of returning an object, throw an error
