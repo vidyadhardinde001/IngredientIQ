@@ -4,8 +4,16 @@ import { useRouter } from "next/navigation";
 import jwt from "jsonwebtoken"; // Add this import
 import FoodSearch from "@/sections/Food_Search";
 import Hero from "@/sections/Hero";
+import IngredientScanPage from "@/sections/barcode"
 import AI from "@/sections/AI";
-import textTranslator from "@/sections/textTranslator";
+// <<<<<<< HEAD
+// import textTranslator from "@/sections/textTranslator";
+// =======
+import Main  from "@/sections/Main";
+import BarcodeScanner from "@/sections/barcode_scanner"
+
+
+// >>>>>>> acfcad748f3ba2c1349d482f8a0ff430c6e1198e
 import Link from "next/link";
 
 export default function Home() {
@@ -51,7 +59,9 @@ const checkAuth = () => {
   return (
     <>
       <Hero/>
-      <textTranslator/>
+      <Main/>
+      <BarcodeScanner/>
+      <IngredientScanPage/>
       <FoodSearch/>
       <nav className="flex justify-end p-4">
         {isAuthenticated ? (

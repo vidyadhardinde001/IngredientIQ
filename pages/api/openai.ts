@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import OpenAI from "openai"; // Import the OpenAI package
+import { OpenAI } from "openai"; // Correct import for OpenAI package
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -35,8 +35,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ],
     });
 
-    // Return the response from OpenAI
-    return res.status(200).json(response);
+    // Return only the content of the first choice from OpenAI's response
+    const aiResponse = response.choices[0]?.message?.content ?? "No response from AI.";
+    return res.status(200).json({ message: aiResponse });
   } catch (error: any) {
     console.error("Error communicating with OpenAI:", error); // Log any errors
     return res.status(500).json({ error: "Failed to fetch information from OpenAI." });

@@ -1,5 +1,5 @@
-import React from "react";
-import { Box, Button } from "@mui/material";
+import React, { useState } from "react";
+import { Box, Button, TextField, CircularProgress } from "@mui/material";
 
 interface SearchSectionProps {
   barcode: string;
@@ -10,7 +10,7 @@ interface SearchSectionProps {
   fetchFoodByName: () => void;
 }
 
-const SearchSection: React.FC<SearchSectionProps> = ({
+const SearchAndScan: React.FC<SearchSectionProps> = ({
   barcode,
   setBarcode,
   fetchFoodByBarcode,
@@ -18,41 +18,80 @@ const SearchSection: React.FC<SearchSectionProps> = ({
   setProductName,
   fetchFoodByName,
 }) => {
+  // State for loading and error handling
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Handling barcode search and setting loading state
+  const handleBarcodeSearch = async () => {
+    setIsLoading(true);
+    setError(null); // Reset error state on new search
+    try {
+      await fetchFoodByBarcode(); // Replace with actual fetch logic
+    } catch (err) {
+      setError("An error occurred while fetching the barcode data.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handling product name search and setting loading state
+  const handleProductSearch = async () => {
+    setIsLoading(true);
+    setError(null); // Reset error state on new search
+    try {
+      await fetchFoodByName(); // Replace with actual fetch logic
+    } catch (err) {
+      setError("An error occurred while fetching the product data.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <Box sx={{ marginBottom: "20px", textAlign: "center" }}>
-      <input
-        type="text"
+      <TextField
+        label="Enter Product Barcode"
+        variant="outlined"
         value={barcode}
         onChange={(e) => setBarcode(e.target.value)}
-        placeholder="Enter product barcode"
-        style={{ padding: "10px", width: "300px", borderRadius: "4px" }}
+        sx={{ width: "300px", marginBottom: "20px" }}
       />
       <Button
         variant="contained"
-        onClick={fetchFoodByBarcode}
+        onClick={handleBarcodeSearch}
         sx={{ marginLeft: "10px", padding: "10px 20px" }}
+        disabled={isLoading}
       >
-        Search by Barcode
+        {isLoading ? <CircularProgress size={24} /> : "Search by Barcode"}
       </Button>
 
       <Box sx={{ marginTop: "20px" }}>
-        <input
-          type="text"
+        <TextField
+          label="Enter Product Name"
+          variant="outlined"
           value={productName}
           onChange={(e) => setProductName(e.target.value)}
-          placeholder="Enter product name"
-          style={{ padding: "10px", width: "300px", borderRadius: "4px" }}
+          sx={{ width: "300px", marginBottom: "20px" }}
         />
         <Button
           variant="contained"
-          onClick={fetchFoodByName}
+          onClick={handleProductSearch}
           sx={{ marginLeft: "10px", padding: "10px 20px" }}
+          disabled={isLoading}
         >
-          Search by Name
+          {isLoading ? <CircularProgress size={24} /> : "Search by Name"}
         </Button>
       </Box>
+
+      {/* Error message */}
+      {error && (
+        <Box sx={{ marginTop: "20px", color: "red", fontWeight: "bold" }}>
+          {error}
+        </Box>
+      )}
     </Box>
   );
 };
 
-export default SearchSection;
+export default SearchAndScan;
